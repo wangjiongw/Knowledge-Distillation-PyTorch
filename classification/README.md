@@ -7,7 +7,7 @@ Standard Cross-entropy Loss between true targets y<sub>k</sub> and the network's
 ![standard cross entropy loss](images/cross_entropy_loss.png)
 
 ### 1. Knowledge Distillation <sup>[1]</sup>
-######Use soft label produced by teacher model to direct student model.<br>
+###### Use soft label produced by teacher model to direct student model.<br>
 
 Softmax output layer converts the logit *z<sub>i</sub>* computed for each class into a probability, *q<sub>i</sub>*,
 by comparing *z<sub>i</sub>* with the other logits.<br>
@@ -77,9 +77,9 @@ Attention Transfer  Losses Definition:
 |Method     |Setting                                                    |
 | --------- | --------------------------------------------------------- |
 |KD         |*T* = 4, *α* = 0.9                                         |
-|AT (WRN)   |* Mapping Function: use sum of squared attention;          |
-|           |* *β*: varies about 0.1. (10<sup>3</sup>/(H * W * N))     |
-|           |* Decay *β* when using combining AT with KD               |
+|AT (WRN)   |*Mapping Function*: use sum of squared attention;          |
+|           |*β*: varies about 0.1. (10<sup>3</sup>/(H * W * N))     |
+|           |Decay *β* when using combining AT with KD               |
  
 
 #### 3.2. Gradient-based attention maps
