@@ -58,8 +58,7 @@ objective functions.
 |Method              |Setting                                                    |
 | ------------------ | --------------------------------------------------------- |
 |KD                  |*T* = 4, *α* = 0.9                                         |
-|FitNet (Maxout Net) |                                                           |
-
+|FitNet (Maxout Net) |2 stages traing; Combined loss fails                       |
 
 
 ### 3. Attention Transfer <sup>[3]</sup>
