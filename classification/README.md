@@ -49,11 +49,11 @@ objective functions.
 |Regressor    |Add to guided layer, outputs matches the size of hint layer            |
 * The deeper the guided layer is , the less flexibility the network has, the more possibly the model get over-regularization. 
 #### 2.2 Stage-wise Training
-1. Stage I: Pre-train student network up to guided layer, based on the prediction error of the teacher's hint layer
+1. Stage I: Pre-train student network up to guided layer, based on the prediction error of the teacher's hint layer<br>
 ![stage I loss](images/fitnet_stage1.png)
-2. Stage II: KD training of the whole network
+2. Stage II: KD training of the whole network<br>
 ![stage II loss](images/fitnet_stage2.png)
-<br>
+
 #### **Experiments on CIFAR:** <br>
 |Method              |Setting                                                    |
 | ------------------ | --------------------------------------------------------- |
@@ -68,7 +68,7 @@ objective functions.
 
 ![act_based_at](images/act_attention.png)
 
-Attention Transfer  Losses Definition:
+Attention Transfer  Losses Definition:<br>
 
 ![at_losses](images/at_losses.png)
 <br>
