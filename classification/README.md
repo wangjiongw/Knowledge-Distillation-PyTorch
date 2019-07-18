@@ -34,7 +34,7 @@ objective functions.
 #### **Experiments on CIFAR:** <br>
 |Method |Setting                                                    |
 | ----- | --------------------------------------------------------- |
-|KD     |*T* = 4, *α* = 0.9                                     |
+|KD     |*T* = 4, *α* = 0.9                                         |
 
 
 ### 2. FitNets<sup>[2]</sup>
@@ -54,7 +54,7 @@ objective functions.
 2. Stage II: KD training of the whole network
 ![stage II loss](images/fitnet_stage2.png)
 <br>
-#### **Experiments on CIFAR:**
+#### **Experiments on CIFAR:** <br>
 |Method              |Setting                                                    |
 | ------------------ | --------------------------------------------------------- |
 |KD                  |*T* = 4, *α* = 0.9                                         |
@@ -78,8 +78,8 @@ Attention Transfer  Losses Definition:
 | --------- | --------------------------------------------------------- |
 |KD         |*T* = 4, *α* = 0.9                                         |
 |AT (WRN)   |*Mapping Function*: use sum of squared attention;          |
-|           |*β*: varies about 0.1. (10<sup>3</sup>/(H * W * N))     |
-|           |Decay *β* when using combining AT with KD               |
+|           |*β*: varies about 0.1. (10<sup>3</sup>/(H * W * N))        |
+|           |Decay *β* when using combining AT with KD                  |
  
 
 #### 3.2. Gradient-based attention maps
@@ -99,7 +99,7 @@ Please see the [Training recipes](TRAINING.md) for how to train the models.
 ## Results
 #### CIFAR
 Top1 error rate on the CIFAR-10/100 benchmarks are reported. You may get different results when training your models with different random seed.
-Note that the number of parameters are computed on the CIFAR-10 dataset.\
+Note that the number of parameters are computed on the CIFAR-10 dataset.<br>
 ```Top-1 Accuracy is the best one, while Top-5 is one at the last epoch.```
 
 | Model             | Param (M)      | CIFAR-10 Top1 (%) | CIFAR-10 Top5 (%) |
