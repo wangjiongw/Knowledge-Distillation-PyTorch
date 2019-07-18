@@ -8,33 +8,62 @@ Standard Cross-entropy Loss between true targets y<sub>k</sub> and the network's
 
 #### 1. Knowledge Distillation <sup>[1]</sup>
 Use soft label produced by teacher model to direct student model.<br>
-Softmax output layer converts the logit z<sub>i</sub> computed for each class into a probability, q<sub>i</sub>,
+
+Softmax output layer converts the logit *z<sub>i</sub>* computed for each class into a probability, q<sub>i</sub>,
 by comparing z<sub>i</sub> with the other logits.<br>
 ![softmax_output](images/Softmax_output.png) <br>
-* T: temperature, the higher temperature is, the softer probability distribution is;<br>
-* z: logits<br>
+```
+* T: temperature, the higher temperature is, the softer probability distribution is;
+* z: network's output logits
+```
+
 
 If correct labels are known for all or sim of the transfer set, use a weighted average of two different 
 objective functions.
 ```
 1. cross entropy loss with the soft targets 
 2. cross entropy loss with the correct labels
-```
+
 * Best results obtained by using a lower weight of second loss; 
 * It's important to multiply 1<sup>st</sup> loss by T<sup>2</sup> when using both the two losses.
+```
 ![kd_total_loss](images/KD_total_loss.png)
 
-
-#### 2. Attention Transfer <sup>[2]</sup>
-
-
-#### 3. Neural Selectivity Transfer <sup>[3]</sup>
++ Setting of CIFAR experiments:<br>
+Temperature T = 4; alpha = 0.9
 
 
-#### 4. Flow of Solution Procedure <sup>[4]</sup>
+#### 2. FitNets<sup>[5]</sup>
 
 
-#### 5. FitNets<sup>[5]</sup>
+#### 3. Attention Transfer <sup>[2]</sup>
+
+> Definition of attention maps<br>
+>> Activation-based attention maps
+<center>
+Feature map R<sup>CxHxW</sup> --> Attention map R<sup>HxW</sup>
+</center>
+
+![act_based_at](images/act_attention.png)
+
+Attention Transfer  Losses Definition:
+
+![at_losses](images/at_losses.png)
++ Setting of CIFAR experiments:<br>
+KD: T = 4, alpha = 0.9<br>
+AT: <br>* Mapping Function: use sum of squared attention;<br>* Beta: varies about 0.1,(10<sup>3</sup>/(H * W * N))
+<br>* Decay Beta when using combining AT with KD
+ 
+
+>> Gradient-based attention maps 
+
+
+#### 4. Neural Selectivity Transfer <sup>[3]</sup>
+
+
+#### 5. Flow of Solution Procedure <sup>[4]</sup>
+
+
 
 ## Training Scripts
 Please see the [Training recipes](TRAINING.md) for how to train the models.
