@@ -2,9 +2,28 @@
 Teacher-Student Mechanism to compress model & improve compact models
  
 
-## Implementation Details
-#### 1. Knowlegde Distillation <sup>[1]</sup>
-Use soft label produced by teacher model to direct student model
+## Loss functions & Details
+Standard Cross-entropy Loss between true targets y<sub>k</sub> and the network's outputs p<sub>k</sub><br>
+![standard cross entropy loss](images/cross_entropy_loss.png)
+
+#### 1. Knowledge Distillation <sup>[1]</sup>
+Use soft label produced by teacher model to direct student model.<br>
+Softmax output layer converts the logit z<sub>i</sub> computed for each class into a probability, q<sub>i</sub>,
+by comparing z<sub>i</sub> with the other logits.<br>
+![softmax_output](images/Softmax_output.png) <br>
+* T: temperature, the higher temperature is, the softer probability distribution is;<br>
+* z: logits<br>
+
+If correct labels are known for all or sim of the transfer set, use a weighted average of two different 
+objective functions.
+```
+1. cross entropy loss with the soft targets 
+2. cross entropy loss with the correct labels
+```
+* Best results obtained by using a lower weight of second loss; 
+* It's important to multiply 1<sup>st</sup> loss by T<sup>2</sup> when using both the two losses.
+
+![kd_total_loss](images/KD_total_loss.png)
 
 
 #### 2. Attention Transfer <sup>[2]</sup>
@@ -45,11 +64,11 @@ Note that the number of parameters are computed on the CIFAR-10 dataset.\
 | ResNet-110        | 1.74           | 71.85              | 91.36              |
 
 
-## Reference
-* [1] Knowledge Distillation (KD): [Distilling the Knowledge in a Neural Network](https://arxiv.org/abs/1503.02531v1)
-* [2] Attenion Transfer (AT): [Paying More Attention to Attention: Improving the Performance of 
+## Supported Algorithms
+* [x] Knowledge Distillation (KD): [Distilling the Knowledge in a Neural Network](https://arxiv.org/abs/1503.02531v1)
+* [x] Attenion Transfer (AT): [Paying More Attention to Attention: Improving the Performance of 
 Convolutional Neural Networks via Attention Transfer](https://arxiv.org/abs/1612.03928v3)
-* [3] Neural Selectivity Transfer (NST): [Like What You Like: Knowledge Distill via Neuron Selectivity Transfer](https://arxiv.org/abs/1707.01219)
-* [4] Flow of Solution Procedure (FSP): [A Gift From Knowledge Distillation: Fast Optimization, 
+* [x] Neural Selectivity Transfer (NST): [Like What You Like: Knowledge Distill via Neuron Selectivity Transfer](https://arxiv.org/abs/1707.01219)
+* [x] Flow of Solution Procedure (FSP): [A Gift From Knowledge Distillation: Fast Optimization, 
 Network Minimization and Transfer Learning](https://zpascal.net/cvpr2017/Yim_A_Gift_From_CVPR_2017_paper.pdf)
-* [5] FitNets: [FitNets: Hints for Thin Deep Nets](https://arxiv.org/abs/1412.6550)
+* [ ] FitNets: [FitNets: Hints for Thin Deep Nets](https://arxiv.org/abs/1412.6550)
