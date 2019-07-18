@@ -54,11 +54,11 @@ objective functions.
 2. Stage II: KD training of the whole network
 ![stage II loss](images/fitnet_stage2.png)
 <br>
-#### **Experiments on CIFAR:** <br>
+#### **Experiments on CIFAR:**
 |Method              |Setting                                                    |
 | ------------------ | --------------------------------------------------------- |
 |KD                  |*T* = 4, *α* = 0.9                                         |
-|FitNet (Maxout Net) |
+|FitNet (Maxout Net) |                                                           |
 
 
 
