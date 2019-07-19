@@ -170,13 +170,13 @@ Minimizing MMD loss = minimizing the distance between *p* and *q*
   - Train the pre-trained student by the main task loss<br> 
   ![fsp_stage2](images/fsp_stage2.png)
 #### **Experiments on CIFAR:** <br>
-|Method             |Setting                                                                                                  |
-| ----------------- | ------------------------------------------------------------------------------------------------ |
-|KD                 |*T* = 4, *α* = 0.9, *λ* = 16                                                                               |
-|FitNet             |*λ* = 100 |
+|Method             |Setting                                                    |
+| ----------------- | --------------------------------------------------------- |
+|KD                 |*T* = 4, *α* = 0.9, *λ* = 16                               |
+|FitNet             |*λ* = 100                                                  |
 |AT                 |*Mapping Function*: sum of squared attention; *λ* = 1000   |
-|NST                |*λ* = 50(Linear), 50(Polynomial), 100(Gaussian)                                         |
-|FSP (ResNet)       |                                                   |
+|NST                |*λ* = 50(Linear), 50(Polynomial), 100(Gaussian)            |
+|FSP (ResNet)       |                                                           |
 
 
 ## Training Scripts
@@ -198,8 +198,8 @@ Note that the number of parameters are computed on the CIFAR-10 dataset.<br>
 | ResNet-110        | 1.73           | 93.77             | 99.78             |
 | WRN-16-1          | 0.18           | 91.30             | 99.75             |
 | WRN-16-2          | 0.69           | 93.58             | 99.78             |
-| WRN-40-1          | 0.56           |               |               |
-| WRN-40-2          | 2.24           |               |               |
+| WRN-40-1          | 0.56           | 93.60             | 99.76             |
+| WRN-40-2          | 2.24           | 95.19             | 99.86             |
 
 | Model             | Param (M)      | CIFAR-100 Top1 (%) | CIFAR-100 Top5 (%) |
 | ----------------- | -------------- | ------------------ | ------------------ |
@@ -210,13 +210,13 @@ Note that the number of parameters are computed on the CIFAR-10 dataset.<br>
 | ResNet-110        | 1.74           | 71.85              | 91.36              |
 | WRN-16-1          | 0.18           | 67.31              | 90.37              |
 | WRN-16-2          | 0.70           | 72.71              | 91.84              |
-| WRN-40-1-drop     | 0.57           |               |               |
-| WRN-40-2-drop     | 2.26           |               |               |
+| WRN-40-1-drop     | 0.57           | 71.87              | 92.31              |
+| WRN-40-2-drop     | 2.26           | 75.98              | 93.59              |
 
 
 ## Supported Algorithms
 * [x] [1] Knowledge Distillation (KD): [Distilling the Knowledge in a Neural Network](https://arxiv.org/abs/1503.02531v1)
-* [ ] [2] FitNets: [FitNets: Hints for Thin Deep Nets](https://arxiv.org/abs/1412.6550)
+* [x] [2] FitNets: [FitNets: Hints for Thin Deep Nets](https://arxiv.org/abs/1412.6550)
 * [x] [3] Attenion Transfer (AT): [Paying More Attention to Attention: Improving the Performance of 
 Convolutional Neural Networks via Attention Transfer](https://arxiv.org/abs/1612.03928v3) 
 * [x] [4] Neural Selectivity Transfer (NST): [Like What You Like: Knowledge Distill via Neuron Selectivity Transfer](https://arxiv.org/abs/1707.01219)
