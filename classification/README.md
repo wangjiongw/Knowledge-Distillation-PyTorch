@@ -27,8 +27,8 @@ objective functions.
   3. Empirically,
   * Best results obtained by using a lower weight of second loss; 
   * It's important to multiply 1<sup>st</sup> loss by T<sup>2</sup> when using both the two losses.
-* KD would perform better with more classes since more classes provide more accurate information about intra-class
- variation in the softened softmax target
+* KD would perform better with more classes since more classes provide more accurate information about intra-class 
+variation in the softened softmax target
 #### Total loss function: <br>
 ![kd_total_loss](images/KD_total_loss.png)
 
@@ -60,11 +60,13 @@ objective functions.
 ![fitnet train scheme](images/fitnet_scheme.png)
 
 #### **Experiments on CIFAR:** <br>
-|Method              |Setting                                                    |
-| ------------------ | --------------------------------------------------------- |
-|KD                  |*T* = 4, *α* = 0.9                                         |
-|FitNet (Maxout Net) |(1) Optimize first half *w.r.t.* hints; (2) Optimize the whole network *w.r.t. L<sub>KD</sub>*  |
-* Alternative methods to hint student with desired output (classification labels)<br>
+|Method              |Setting                                                                     |
+| ------------------ | -------------------------------------------------------------------------- |
+|KD                  |*T* = 4, *λ* = 0.9                                                          |
+|FitNet (Maxout Net) |I.  Optimize first half *w.r.t.* hints;                                     |
+|                    |II. Optimize the whole network *w.r.t. L<sub>KD</sub>*; *T* = 4, *λ* = 0.9  |
+* **Further Comparisons:**<br>
+Alternative methods to hint student with desired output (classification labels)<br>
 
 |     |Train                                                                                                                   |
 | --- | ---------------------------------------------------------------------------------------------------------------------- |
@@ -84,22 +86,26 @@ that Jointly optimizing fails to learn.
 
 ![act_based_at](images/act_attention.png)
 
+![attention](images/attention.png)
+
 Attention Transfer  Losses Definition:<br>
 
 ![at_losses](images/at_losses.png)
 <br>
+ ![at_scheme](images/at_scheme.png)
+ <br>
 #### **Experiments on CIFAR:** <br>
 |Method     |Setting                                                                                                  |
 | --------- | ------------------------------------------------------------------------------------------------------- |
 |KD         |*T* = 4, *α* = 0.9                                                                                       |
-|FitNet     |(1) Optimize first half *w.r.t.* hints; (2) Optimize the whole network *w.r.t. L<sub>KD</sub>*  |
+|FitNet     |(1) Optimize first half *w.r.t.* hints; (2) Optimize the whole network *w.r.t. L<sub>KD</sub>* *T* = 4, *λ* = 0.9  |
 |AT (WRN)   |*Mapping Function*: use sum of squared attention;                                                        |
 |           |*β*: varies about 0.1. (10<sup>3</sup>/(H * W * N))                                                      |
 |           |Decay *β* when using combining AT with KD                                                                |
  
 
 #### 3.2. Gradient-based attention maps
-
+To be completed
 
 ### 4. Neural Selectivity Transfer <sup>[4]</sup>
 ###### Align the distribution of activations of its intermediate layer with that of the teacher
@@ -134,12 +140,12 @@ Minimizing MMD loss = minimizing the distance between *p* and *q*
     in the space.
 
 #### **Experiments on CIFAR:** <br>
-|Method             |Setting                                                                                                  |
-| ----------------- | ------------------------------------------------------------------------------------------------ |
-|KD                 |*T* = 4, *α* = 0.9, *λ* = 16                                                                               |
-|FitNet             |*λ* = 100 |
+|Method             |Setting                                                    |
+| ----------------- | --------------------------------------------------------- |
+|KD                 |*T* = 4, *λ* = 16                                          |
+|FitNet             |*λ* = 100                                                  |
 |AT                 |*Mapping Function*: sum of squared attention; *λ* = 1000   |
-|NST (Inception BN) |*λ* = 50(Linear), 50(Polynomial), 100(Gaussian)                                         |
+|NST (Inception BN) |*λ* = 50(Linear), 50(Polynomial), 100(Gaussian)            |
 
 
 ### 5. Flow of Solving a Problem <sup>[5]</sup>
