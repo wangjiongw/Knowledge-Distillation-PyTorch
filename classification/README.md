@@ -196,6 +196,10 @@ Note that the number of parameters are computed on the CIFAR-10 dataset.<br>
 | ResNet-44         | 0.66           | 93.32             | 99.76             |
 | ResNet-56         | 0.86           | 93.63             | 99.75             |
 | ResNet-110        | 1.73           | 93.77             | 99.78             |
+| WRN-16-1          | 0.18           | 91.30             | 99.75             |
+| WRN-16-2          | 0.69           | 93.58             | 99.78             |
+| WRN-40-1          | 0.56           |               |               |
+| WRN-40-2          | 2.24           |               |               |
 
 | Model             | Param (M)      | CIFAR-100 Top1 (%) | CIFAR-100 Top5 (%) |
 | ----------------- | -------------- | ------------------ | ------------------ |
@@ -204,6 +208,10 @@ Note that the number of parameters are computed on the CIFAR-10 dataset.<br>
 | ResNet-44         | 0.67           | 70.56              | 91.33              |
 | ResNet-56         | 0.86           | 71.09              | 91.56              |
 | ResNet-110        | 1.74           | 71.85              | 91.36              |
+| WRN-16-1          | 0.18           | 67.31              | 90.37              |
+| WRN-16-2          | 0.70           | 72.71              | 91.84              |
+| WRN-40-1-drop     | 0.57           |               |               |
+| WRN-40-2-drop     | 2.26           |               |               |
 
 
 ## Supported Algorithms
