@@ -126,5 +126,3 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
-
-classification/images/mmd_loss.png
