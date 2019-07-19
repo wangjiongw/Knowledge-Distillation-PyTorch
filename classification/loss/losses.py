@@ -5,58 +5,69 @@ import torch.nn.functional as F
 
 # https://github.com/peterliht/knowledge-distillation-pytorch/blob/master/model/net.py#L100
 # Total loss = kd_loss * alpha + CELoss * (1 - alpha)
-def kd_loss(outputs, teacher_outputs, args):
+def kd_loss(s, t, args):
     """
     Knowledge Distillation Loss
-    :param outputs:
-    :param teacher_outputs:
+    :param s:
+    :param t:
     :param args:
     :return:
     """
     T = args.temperature
-    kd_loss = nn.KLDivLoss()(F.log_softmax(outputs / T, dim=1), F.softmax(teacher_outputs / T, dim=1)) * (T * T)
+    kd_loss = nn.KLDivLoss()(F.log_softmax(s / T, dim=1), F.softmax(t / T, dim=1)) * (T * T)
     return kd_loss
 
 
 # attention transfer loss
-def at_loss(student_feature, teacher_feature):
+def attention(x):
+    return F.normalize(x.pow(2).mean(1).view(x.size(0), -1))
+
+
+def at_loss(s, t, args):
     """
     Attention Transfer Loss
-    :param student_feature:
-    :param teacher_feature:
+    :param s:
+    :param t:
+    :param args:
     :return:
     """
-    n, c, h, w = student_feature.shape
-    _n, _c, _h, _w = teacher_feature.shape
+    n, c, h, w = s.shape
+    _n, _c, _h, _w = t.shape
     assert h == _h and w == _w
-    student_at = F.normalize(student_feature.pow(pow).mean(1).view(n, -1))
-    teacher_at = F.normalize(teacher_feature.pow(pow).mean(1).view(n, -1))
-    loss = (student_at - teacher_at).pow(2).mean()
+    loss = (attention(s) - attention(t)).pow(2).mean()
     return loss
 
 
-def nst_loss(student_feature, teacher_feature):
+def nst_loss(s, t):
     """
     Neural Selectivity Transfer Loss
-    :param student_feature:
-    :param teacher_feature:
+    :param s:
+    :param t:
     :return:
     """
+    n, c, h, w = s.shape
+    s = F.normalize(s.view(n, c, -1), dim=1)           # N, C, H*W
+    gram_s = s.transpose(1, 2).bmm(s)
+    assert s.shape[2] == s.shape[3]
+    t = F.normalize(t.view(n, c, -1), dim=1)
+    gram_t = t.transpose(1, 2).bmm(t)
+    loss = ()
 
 
-def similarity_loss(student_feature, teacher_feature):
+
+def similarity_loss(s, t):
     """
     Similarity Transfer Loss
-    :param student_feature:
-    :param teacher_feature:
+    :param s:
+    :param t:
     :return:
     """
 
 
-def fsp_loss(student_features, teacher_features):
+def fsp_loss(s, t):
     """
-    Flow of Solution Procedure Loss
-    :param student_features:
-    :param teacher_features:
+    FSP matrix loss
+    :param s:
+    :param t:
     :return:
     """

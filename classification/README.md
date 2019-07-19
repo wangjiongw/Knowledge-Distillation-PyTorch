@@ -27,7 +27,8 @@ objective functions.
   3. Empirically,
   * Best results obtained by using a lower weight of second loss; 
   * It's important to multiply 1<sup>st</sup> loss by T<sup>2</sup> when using both the two losses.
-
+* KD would perform better with more classes since more classes provide more accurate information about intra-class 
+variation in the softened softmax target
 #### Total loss function: <br>
 ![kd_total_loss](images/KD_total_loss.png)
 
@@ -54,11 +55,28 @@ objective functions.
 2. Stage II: KD training of the whole network<br>
 ![stage II loss](images/fitnet_stage2.png)
 
+
+#### Training Scheme
+![fitnet train scheme](images/fitnet_scheme.png)
+
 #### **Experiments on CIFAR:** <br>
-|Method              |Setting                                                    |
-| ------------------ | --------------------------------------------------------- |
-|KD                  |*T* = 4, *α* = 0.9                                         |
-|FitNet (Maxout Net) |2 stages traing; Combined loss fails                       |
+|Method              |Setting                                                                     |
+| ------------------ | -------------------------------------------------------------------------- |
+|KD                  |*T* = 4, *λ* = 0.9                                                          |
+|FitNet (Maxout Net) |I.  Optimize first half *w.r.t.* hints;                                     |
+|                    |II. Optimize the whole network *w.r.t. L<sub>KD</sub>*; *T* = 4, *λ* = 0.9  |
+* **Further Comparisons:**<br>
+Alternative methods to hint student with desired output (classification labels)<br>
+
+|     |Train                                                                                                                   |
+| --- | ---------------------------------------------------------------------------------------------------------------------- |
+|1    |(1) Optimize first half *w.r.t.* classification targets; (2) Optimize the whole network *w.r.t.* classification targets |
+|2    |(1) Optimize first half *w.r.t.* classification targets; (2) Optimize the whole network *w.r.t. L<sub>KD</sub>*         |
+|3    |Jointly optimize *w.r.t.* sum of hint for the guided layer & classification targets for the output layer                |
+|4    |Jointly optimize *w.r.t.* sum of hint for the guided layer & *L<sub>KD</sub>* for the output layer                      |
+
+First stage with classification target doesn't help stage 2 sufficiently, while hints of targets may be so aggressive 
+that Jointly optimizing fails to learn. 
 
 
 ### 3. Attention Transfer <sup>[3]</sup>
@@ -68,27 +86,97 @@ objective functions.
 
 ![act_based_at](images/act_attention.png)
 
+![attention](images/attention.png)
+
 Attention Transfer  Losses Definition:<br>
 
 ![at_losses](images/at_losses.png)
 <br>
+ ![at_scheme](images/at_scheme.png)
+ <br>
 #### **Experiments on CIFAR:** <br>
-|Method     |Setting                                                    |
-| --------- | --------------------------------------------------------- |
-|KD         |*T* = 4, *α* = 0.9                                         |
-|AT (WRN)   |*Mapping Function*: use sum of squared attention;          |
-|           |*β*: varies about 0.1. (10<sup>3</sup>/(H * W * N))        |
-|           |Decay *β* when using combining AT with KD                  |
+|Method     |Setting                                                                                                  |
+| --------- | ------------------------------------------------------------------------------------------------------- |
+|KD         |*T* = 4, *α* = 0.9                                                                                       |
+|FitNet     |(1) Optimize first half *w.r.t.* hints; (2) Optimize the whole network *w.r.t. L<sub>KD</sub>* *T* = 4, *λ* = 0.9  |
+|AT (WRN)   |*Mapping Function*: use sum of squared attention;                                                        |
+|           |*β*: varies about 0.1. (10<sup>3</sup>/(H * W * N))                                                      |
+|           |Decay *β* when using combining AT with KD                                                                |
  
 
 #### 3.2. Gradient-based attention maps
-
+To be completed
 
 ### 4. Neural Selectivity Transfer <sup>[4]</sup>
+###### Align the distribution of activations of its intermediate layer with that of the teacher
+
+#### 4.1 Notations
+1. Shape of the whole Feature map           **F**:               **R**<sup>CxHxW</sup>;<br>
+Shape of feature of each channel (row)      **f**<sup> k·</sup>: **R**<sup>HxW</sup>;<br>
+Shape of feature of each position (column)  **f**<sup> ·k</sup>: **R**<sup>C</sup>.
+2. **Maximum Mean Discrepancy (MMD)**<br>
+Suppose we are given two sets
+of samples X = {x<sup>i</sup>}<sup>N</sup><sub>i=1</sub> and Y = {y<sup>j</sup>}<sup>M</sup><sub>j=1</sub> sampled from
+distributions *p* and *q*, respectively<br>
+![mmd loss](images/mmd_loss.png)
+<br>
+Minimizing MMD loss = minimizing the distance between *p* and *q*
+
+#### 4.2 Neural Selectivity Transfer (NST)
+##### Total loss in NST: 
+![nst_loss](images/nst_total_loss.png)
+<br>
+1. **Formulation**<br>
+  (1) Choices of Kernels<br>
+  ![nst_kernels](images/nst_kernels.png)
+  <br>For Polynomial Kernels, set d = 2, c = 0;<br>
+    - Linear Kernel<br>
+    Attention Transfer is a special case of linear kernel of NST.<br>
+    - Polynomial Kernel<br>
+    NST with second order polynomial kernel with c = 0 can be treated as matching Gram matrix.<br>
+    ![nst_gram](images/nst_loss.png)
+
+    (2) Compared with directly matching feature maps in FitNet, match samples will ignores the sample density 
+    in the space.
+
+#### **Experiments on CIFAR:** <br>
+|Method             |Setting                                                    |
+| ----------------- | --------------------------------------------------------- |
+|KD                 |*T* = 4, *λ* = 16                                          |
+|FitNet             |*λ* = 100                                                  |
+|AT                 |*Mapping Function*: sum of squared attention; *λ* = 1000   |
+|NST (Inception BN) |*λ* = 50(Linear), 50(Polynomial), 100(Gaussian)            |
 
 
-### 5. Flow of Solution Procedure <sup>[5]</sup>
+### 5. Flow of Solving a Problem <sup>[5]</sup>
+###### Defined a high-level distilled knowledge as the flow of solving a problem: 
+###### Gramian matrix consisting of the inner products between features from two layers
 
+#### 5.1. Proposed Distilled Knowledge
+##### Let the student learns the solution method when a specific type of question is encountered
+(1) Mathematical Expression of the distilled knowledge<br>
+  - *G*∈R<sup>*m*x*n*</sup> = *F*<sup>1</sup>∈R<sup>*m*xHxW</sup> · *F*<sup>2</sup>∈R<sup>*n*xHxW</sup><br>
+  ![fsp_matrix](images/fsp_matrix.png)
+  <br>where *x* represents the input and *W* represents the weights of DNN
+  
+(2) Loss for FSP matrix
+  ![fsp_loss](images/fsp_loss.png)
+  <br>
+  Consider the whole loss term is the same significant, so use the same *λ<sub>i</sub>* for all experiments.
+
+(3) Stage-wise training<br>
+  - Minimize the *L<sub>FSP</sub>* to make the FSP matrix of the student similar to that of teacher;<br>
+  ![fsp_stage1](images/fsp_stage1.png)
+  - Train the pre-trained student by the main task loss<br> 
+  ![fsp_stage2](images/fsp_stage2.png)
+#### **Experiments on CIFAR:** <br>
+|Method             |Setting                                                    |
+| ----------------- | --------------------------------------------------------- |
+|KD                 |*T* = 4, *α* = 0.9, *λ* = 16                               |
+|FitNet             |*λ* = 100                                                  |
+|AT                 |*Mapping Function*: sum of squared attention; *λ* = 1000   |
+|NST                |*λ* = 50(Linear), 50(Polynomial), 100(Gaussian)            |
+|FSP (ResNet)       |                                                           |
 
 
 ## Training Scripts
@@ -108,6 +196,10 @@ Note that the number of parameters are computed on the CIFAR-10 dataset.<br>
 | ResNet-44         | 0.66           | 93.32             | 99.76             |
 | ResNet-56         | 0.86           | 93.63             | 99.75             |
 | ResNet-110        | 1.73           | 93.77             | 99.78             |
+| WRN-16-1          | 0.18           | 91.30             | 99.75             |
+| WRN-16-2          | 0.69           | 93.58             | 99.78             |
+| WRN-40-1          | 0.56           | 93.60             | 99.76             |
+| WRN-40-2          | 2.24           | 95.19             | 99.86             |
 
 | Model             | Param (M)      | CIFAR-100 Top1 (%) | CIFAR-100 Top5 (%) |
 | ----------------- | -------------- | ------------------ | ------------------ |
@@ -116,11 +208,15 @@ Note that the number of parameters are computed on the CIFAR-10 dataset.<br>
 | ResNet-44         | 0.67           | 70.56              | 91.33              |
 | ResNet-56         | 0.86           | 71.09              | 91.56              |
 | ResNet-110        | 1.74           | 71.85              | 91.36              |
+| WRN-16-1          | 0.18           | 67.31              | 90.37              |
+| WRN-16-2          | 0.70           | 72.71              | 91.84              |
+| WRN-40-1-drop     | 0.57           | 71.87              | 92.31              |
+| WRN-40-2-drop     | 2.26           | 75.98              | 93.59              |
 
 
 ## Supported Algorithms
 * [x] [1] Knowledge Distillation (KD): [Distilling the Knowledge in a Neural Network](https://arxiv.org/abs/1503.02531v1)
-* [ ] [2] FitNets: [FitNets: Hints for Thin Deep Nets](https://arxiv.org/abs/1412.6550)
+* [x] [2] FitNets: [FitNets: Hints for Thin Deep Nets](https://arxiv.org/abs/1412.6550)
 * [x] [3] Attenion Transfer (AT): [Paying More Attention to Attention: Improving the Performance of 
 Convolutional Neural Networks via Attention Transfer](https://arxiv.org/abs/1612.03928v3) 
 * [x] [4] Neural Selectivity Transfer (NST): [Like What You Like: Knowledge Distill via Neuron Selectivity Transfer](https://arxiv.org/abs/1707.01219)
