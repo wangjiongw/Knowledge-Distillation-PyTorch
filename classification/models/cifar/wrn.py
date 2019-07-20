@@ -83,13 +83,13 @@ class WideResNet(nn.Module):
 
     def forward(self, x):
         out = self.conv1(x)
-        out = self.block1(out)
-        out = self.block2(out)
-        out = self.block3(out)
-        out = self.relu(self.bn1(out))
+        out1 = self.block1(out)
+        out2 = self.block2(out1)
+        out3 = self.block3(out2)
+        out = self.relu(self.bn1(out3))
         out = F.avg_pool2d(out, 8)
         out = out.view(-1, self.nChannels)
-        return self.fc(out)
+        return self.fc(out), {1: out1, 2: out2, 3: out3}
 
 
 def wrn(**kwargs):

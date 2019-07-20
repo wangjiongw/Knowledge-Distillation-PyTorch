@@ -12,7 +12,8 @@ import shutil
 import time
 import random
 from tqdm import tqdm
-from loss.distillation import Distillation
+from .loss.distillation import Distillation
+from .loss.losses import *
 from tensorboardX import SummaryWriter
 
 import torch
@@ -27,7 +28,6 @@ import models.cifar as models
 from models.cifar.resnet_vision import BasicBlock, Bottleneck
 
 from utils import Logger, AverageMeter, accuracy, mkdir_p, savefig
-from utility import at_loss
 
 
 model_names = sorted(name for name in models.__dict__
@@ -105,13 +105,16 @@ parser.add_argument('--teacher_checkpoint', default='', type=str, metavar='PATH'
 # Mimic setting
 parser.add_argument('--mutual_learning', type=bool, default=False,
                     help='Co-train teacher model from scratch')
-parser.add_argument('--mimic_mean', type=str, default='attention', choices=('attention', 'feature', 'similarity', 'gram'),
+parser.add_argument('--mimic_loss', type=str, default='attention', choices=('attention', 'feature', 'similarity', 'gram'),
                     help='means of feature mimicking')
-parser.add_argument('--mimic_function', type=str, default='L2', choices=('L1', 'L2'),
-                    help='Loss function for feature mimicking')
-parser.add_argument('--normalize', type=int, default=-1,
-                    help='which dimension to normalize')
-
+parser.add_argument('--mimic_position', action='+',
+                    help='which positions to be mimicked')
+parser.add_argument('--temperature', type=float, default=4,
+                    help='Temperature for soft labels')
+parser.add_argument('--mimic_theta', type=float, default=0,
+                    help='weight of mimic loss')
+parser.add_argument('--lambda', type=float, default=0,
+                    help='importance term for loss terms')
 
 args = parser.parse_args()
 # Validate dataset

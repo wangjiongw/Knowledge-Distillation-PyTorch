@@ -200,16 +200,16 @@ class ResNet(nn.Module):
         x = self.relu(x)
         x = self.maxpool(x)
 
-        x = self.layer1(x)
-        x = self.layer2(x)
-        x = self.layer3(x)
-        x = self.layer4(x)
+        f1 = self.layer1(x)
+        f2 = self.layer2(f1)
+        f3 = self.layer3(f2)
+        f4 = self.layer4(f3)
 
-        x = self.avgpool(x)
+        x = self.avgpool(f4)
         x = x.reshape(x.size(0), -1)
         x = self.fc(x)
 
-        return x
+        return x, {1: f1, 2: f2, 3: f3, 4: f4}
 
 
 def _resnet(arch, block, layers, pretrained, progress, **kwargs):

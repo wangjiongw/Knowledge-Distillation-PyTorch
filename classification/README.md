@@ -62,7 +62,7 @@ variation in the softened softmax target
 #### **Experiments on CIFAR:** <br>
 |Method              |Setting                                                                     |
 | ------------------ | -------------------------------------------------------------------------- |
-|KD                  |*T* = 4, *λ* = 0.9                                                          |
+|KD                  |*T* = 4; *λ* = 4, decay to 1                                                |
 |FitNet (Maxout Net) |I.  Optimize first half *w.r.t.* hints;                                     |
 |                    |II. Optimize the whole network *w.r.t. L<sub>KD</sub>*; *T* = 4, *λ* = 0.9  |
 * **Further Comparisons:**<br>
@@ -172,7 +172,7 @@ Minimizing MMD loss = minimizing the distance between *p* and *q*
 #### **Experiments on CIFAR:** <br>
 |Method             |Setting                                                    |
 | ----------------- | --------------------------------------------------------- |
-|KD                 |*T* = 4, *α* = 0.9, *λ* = 16                               |
+|KD                 |*T* = 4, *λ* = 16                               |
 |FitNet             |*λ* = 100                                                  |
 |AT                 |*Mapping Function*: sum of squared attention; *λ* = 1000   |
 |NST                |*λ* = 50(Linear), 50(Polynomial), 100(Gaussian)            |
