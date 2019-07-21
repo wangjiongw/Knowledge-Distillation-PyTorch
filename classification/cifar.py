@@ -105,12 +105,18 @@ parser.add_argument('--teacher_checkpoint', default='', type=str, metavar='PATH'
 parser.add_argument('--mutual_learning', type=bool, default=False,
                     help='Co-train teacher model from scratch')
 # Mimic setting
-parser.add_argument('--mimic_loss', type=str, default='attention', choices=('attention', 'feature', 'similarity', 'gram'),
+parser.add_argument('--mimic_loss', type=str, default='attention',
+                    choices=('at_loss', 'ft_loss', 'nst_loss', 'mmd_loss'),
                     help='means of feature mimicking')
 parser.add_argument('--mimic_position', type=int, nargs='+',
                     help='which positions to be mimicked')
 parser.add_argument('--temperature', type=float, default=4,
                     help='Temperature for soft labels')
+
+parser.add_argument('--task_theta', type=float, default=1,
+                    help='weight of main task loss (classification)')
+parser.add_argument('--kd_theta', type=float, default=0,
+                    help='weight of ')
 parser.add_argument('--mimic_theta', type=float, default=0,
                     help='weight of total mimic loss')
 parser.add_argument('--mimic_lambda', type=float, nargs='+',
@@ -131,12 +137,13 @@ random.seed(args.manualSeed)
 torch.manual_seed(args.manualSeed)
 if use_cuda:
     torch.cuda.manual_seed_all(args.manualSeed)
-assert len(args.mimic_position) == len(args.mimic_lambda)
+# fsp loss requires feature pairs
+assert len(args.mimic_position) % len(args.mimic_lambda) == 0
 
 state = {k: v for k, v in args._get_kwargs()}
 print('Input Arguments: \n{}'.format(json.dumps(state, indent=4)))
-best_acc = 0  # best test accuracy
-t_best_acc = 0
+best_acc = 0        # best test accuracy
+t_best_acc = 0      # best test accuracy of teacher
 
 
 def main():
@@ -234,6 +241,10 @@ def main():
     cudnn.benchmark = True
     print('    Total params: %.2fM' % (sum(p.numel() for p in model.parameters()) / 1000000.0))
 
+    criterion = nn.CrossEntropyLoss()
+    loss_info = 'Total loss = {} * Cross Entropy'.format(args.task_theta)
+    optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
+
     # Teacher Model: teacher model, teacher_crit, teacher_opt, teacher_acc
     if eval(args.teacher):
         print("==> creating Teacher Model '{}{}'".format(args.teacher_arch, args.teacher_depth))
@@ -303,15 +314,14 @@ def main():
         print('    Total params of Teacher model: %.2fM' % (sum(p.numel() for p in teacher.parameters()) / 1000000.0))
         # mimic_crit = Distillation(supervision=args.mimic_mean, function=args.mimic_function, normalize=args.normalize)
         mimic_crit = eval(args.mimic_loss) if len(args.mimic_loss) > 0 else None
+        loss_info += ' + {} * kd_loss + {} * {}'.format(args.kd_theta, args.mimic_theta, args.mimic_loss)
     else:
         teacher = None
         t_best_acc = None
         mimic_crit = None
         teacher_opt = None
 
-    criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
-
+    print('    Loss info: [ {} ]'.format(loss_info))
     # Resume
     if eval(args.teacher):
         if args.mutual_learning is True:
@@ -343,12 +353,13 @@ def main():
         print(' Test Loss:  {:.8f}, Test Acc:  {:.3f}[{:.3f}]'.format(test_loss, test_acc1, test_acc5))
         return
 
-    # Train and val: T == teacher
+    # Train and val: T == teacher, S == student
     for epoch in range(start_epoch, args.epochs):
         adjust_learning_rate(optimizer, epoch)
         print('\nEpoch: [{} | {}] | LR: {:.5f} '.format(epoch + 1, args.epochs, state['lr']))
 
         # TO DO: Train teacher model
+        """
         if teacher and teacher_opt:
             t_train_loss, t_train_acc1, t_train_acc5 = train(trainloader, teacher, criterion,
                                                              teacher_opt, epoch, use_cuda, name='T')
@@ -376,14 +387,15 @@ def main():
                 'best_acc': t_best_acc,
                 'optimizer': teacher_opt.state_dict(),
             }, t_is_best, checkpoint=args.checkpoint)
+        """
 
         train_loss, train_acc1, train_acc5 = train(trainloader, model, criterion, optimizer, epoch, use_cuda, name='S',
                                                    teacher=teacher, teacher_opt=teacher_opt, mimic_criterion=mimic_crit)
         test_loss, test_acc1, test_acc5 = test(testloader, model, criterion, epoch, use_cuda, name='S', teacher=teacher)
 
         # append logger file
-        print('[S] Loss: [train: {:.4f} | test: {:.4f}] Acc(1[5]): [train: {:.3f}[{:.3f}] | test: {:.3f}[{:.3f}]]'.format(
-            train_loss, test_loss, train_acc1, train_acc5, test_acc1, test_acc5))
+        print('[S] Loss: [train: {:.4f} | test: {:.4f}] Acc(1[5]): [train: {:.3f}[{:.3f}] | test: {:.3f}[{:.3f}]]'.
+              format(train_loss, test_loss, train_acc1, train_acc5, test_acc1, test_acc5))
 
         logger.append([state['lr'], train_loss, test_loss, 100 - train_acc1, 100 - test_acc1])
 
@@ -424,18 +436,19 @@ def train(trainloader, model, criterion, optimizer, epoch, use_cuda, name='S',
     model.train()
     teacher.train()
 
+    end = time.time()
     batch_time = AverageMeter()
     data_time = AverageMeter()
     losses = AverageMeter()
     top1 = AverageMeter()
     top5 = AverageMeter()
-    end = time.time()
     # Average Meters for teacher
     t_losses = AverageMeter()
     t_top1 = AverageMeter()
     t_top5 = AverageMeter()
 
     tbar = tqdm(trainloader, ncols=80)
+    # Consider Task Loss & KD Loss & Mimic Loss
     for batch_idx, (inputs, targets) in enumerate(tbar):
         # measure data loading time
         data_time.update(time.time() - end)
@@ -447,11 +460,12 @@ def train(trainloader, model, criterion, optimizer, epoch, use_cuda, name='S',
 
         # model output
         outputs, features = model(inputs)
+        # Task Loss
         task_loss = criterion(outputs, targets)
+        effective_task_loss = args.task_theta * task_loss
 
         # output from teacher
         if teacher and teacher_opt:
-            teacher.train()
             t_outputs, t_features = teacher(inputs)
             t_loss = criterion(t_outputs, targets)
 
@@ -465,6 +479,8 @@ def train(trainloader, model, criterion, optimizer, epoch, use_cuda, name='S',
             teacher_opt.zero_grad()
             t_loss.backward()
             teacher_opt.step()
+
+            writer.add_scalar('Train_batch_batch/Teacher_Loss', t_loss.item(), curr_batch)
         elif teacher and teacher_opt is None:
             # teacher.eval()
             with torch.no_grad():
@@ -472,14 +488,24 @@ def train(trainloader, model, criterion, optimizer, epoch, use_cuda, name='S',
         else:
             t_outputs, t_features = None, None
 
-        if mimic_criterion and t_features:
-            # mimic_loss = mimic_criterion(features, t_features, writer=writer, batch=curr_batch)
-            # TO DO: FSP losses require feature pairs!
-            mimic_losses = [args.mimic_lambda * mimic_criterion(features[p], t_features[p], args) for i, p in enumerate(args.mimic_positions)]
+        # KD Loss
+        if t_outputs is not None and args.kd_theta > 0:
+            soft_loss = kd_loss(outputs, t_outputs, args)
+            effective_soft_loss = args.kd_theta * soft_loss
+        else:
+            soft_loss = torch.tensor(0).float().to(inputs.device)
+            effective_soft_loss = args.kd_theta * soft_loss
+
+        # Mimic Loss
+        if mimic_criterion and t_features and len(args.mimic_position) > 0:
+            mimic_losses = mimic_criterion(features, t_features, args)
             mimic_loss = sum(mimic_losses)
+            effective_mimic_loss = args.mimic_theta * mimic_loss
         else:
             mimic_loss = torch.tensor(0).float().to(inputs.device)
-        total_loss = task_loss + mimic_loss
+            effective_mimic_loss = args.mimic_theta * mimic_loss
+
+        total_loss = effective_task_loss + effective_soft_loss + effective_mimic_loss
 
         # measure accuracy and record loss
         prec1, prec5 = accuracy(outputs.data, targets.data, topk=(1, 5))
@@ -496,18 +522,25 @@ def train(trainloader, model, criterion, optimizer, epoch, use_cuda, name='S',
         batch_time.update(time.time() - end)
         end = time.time()
 
-        # plot tensorboard
-        writer.add_scalar('Train_batch/Loss', losses.val, curr_batch)
+        # plot tensorboard;
+        writer.add_scalar('Train_batch/Loss', task_loss.item(), curr_batch)
+        writer.add_scalar('Train_batch/Total Loss', total_loss.item(), curr_batch)
         writer.add_scalar('Train_batch/Error Rate', 100 - top1.val, curr_batch)
         writer.add_scalar('Train_batch/Top1 Accuracy', top1.val, curr_batch)
-        writer.add_scalar('Train_batch/Top5 Accuracy', top1.val, curr_batch)
-        writer.add_scalar('Train_batch/Mimic Loss', mimic_loss.item(), curr_batch)
-        writer.add_scalar('Train_batch/Total Loss', total_loss.item(), curr_batch)
+        writer.add_scalar('Train_batch/Top5 Accuracy', top5.val, curr_batch)
+        # distillation; each term of distillation loss
+        writer.add_scalar('Train_batch_distill/task_loss*{}'.format(args.task_theta),
+                          effective_task_loss.item(), curr_batch)
+        writer.add_scalar('Train_batch_distill/kd_loss*{}'.format(args.kd_theta),
+                          effective_soft_loss.item(), curr_batch)
+        writer.add_scalar('Train_batch_distill/{}*{}'.format(args.mimic_loss, args.mimic_theta),
+                          effective_mimic_loss.item(), curr_batch)
         # plot progress
-        tbar.set_description('[{}]DT:{data:.3f}s|BT:{bt:.3f}s|tL:{loss:.4f}|'
+        tbar.set_description('[{}]DT:{data:.3f}s|BT:{bt:.3f}s|tL:{loss:.4f}|kL:{kloss:.4f}'
                              'mL: {mloss:.4f}|top1:{top1:.4f}|top5:{top5:.4f}'.
-                             format(name, data=data_time.avg, bt=batch_time.avg, loss=losses.avg,
-                                    mloss=mimic_loss.item(), top1=top1.avg, top5=top5.avg))
+                             format(name, data=data_time.avg, bt=batch_time.avg, loss=effective_task_loss.item(),
+                                    kloss=effective_soft_loss.item(), mloss=effective_mimic_loss.item(),
+                                    top1=top1.avg, top5=top5.avg))
     return losses.avg, top1.avg, top5.avg
 
 
@@ -549,9 +582,10 @@ def test(testloader, model, criterion, epoch, use_cuda, name='S', teacher=None):
         end = time.time()
 
         # plot progress
-        tbar.set_description('Data:{data:.3f}s|Batch:{bt:.3f}s|Loss:{loss:.4f}|top1:{top1:.4f}|top5:{top5:.4f}'.format(
-            data=data_time.avg, bt=batch_time.avg, loss=losses.avg, top1=top1.avg, top5=top5.avg
-        ))
+        tbar.set_description('[{name}]DT:{data:.3f}s|BT:{bt:.3f}s|Loss:{loss:.4f}|top1:{top1:.4f}|top5:{top5:.4f}'.
+                             format(name=name, data=data_time.avg, bt=batch_time.avg,
+                                    loss=losses.avg, top1=top1.avg, top5=top5.avg
+                                    ))
     return losses.avg, top1.avg, top5.avg
 
 
