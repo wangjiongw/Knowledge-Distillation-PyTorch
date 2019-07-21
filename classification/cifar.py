@@ -88,7 +88,7 @@ parser.add_argument('-e', '--evaluate', dest='evaluate', action='store_true',
 parser.add_argument('--gpu-id', default='0', type=str,
                     help='id(s) for CUDA_VISIBLE_DEVICES')
 # Teacher Model setting
-parser.add_argument('--teacher', action='store_true',
+parser.add_argument('--teacher', type=str, default='False', choices=('True', 'False'),
                     help='use teacher model')
 parser.add_argument('--teacher_arch', type=str, default='resnet50', choices=model_names,
                     help='teacher model architecture: ' + ' | '.join(model_names) + ' (default: resnet18)')
@@ -102,19 +102,19 @@ parser.add_argument('--teacher_growthRate', type=int, default=12, help='Growth r
 parser.add_argument('--teacher_compressionRate', type=int, default=2, help='Compression Rate (theta) for DenseNet.')
 parser.add_argument('--teacher_checkpoint', default='', type=str, metavar='PATH',
                     help='path to teacher checkpoint (default: none)')
-# Mimic setting
 parser.add_argument('--mutual_learning', type=bool, default=False,
                     help='Co-train teacher model from scratch')
+# Mimic setting
 parser.add_argument('--mimic_loss', type=str, default='attention', choices=('attention', 'feature', 'similarity', 'gram'),
                     help='means of feature mimicking')
-parser.add_argument('--mimic_position', action='+',
+parser.add_argument('--mimic_position', type=int, nargs='+',
                     help='which positions to be mimicked')
 parser.add_argument('--temperature', type=float, default=4,
                     help='Temperature for soft labels')
 parser.add_argument('--mimic_theta', type=float, default=0,
-                    help='weight of mimic loss')
-parser.add_argument('--lambda', type=float, default=0,
-                    help='importance term for loss terms')
+                    help='weight of total mimic loss')
+parser.add_argument('--mimic_lambda', type=float, nargs='+',
+                    help='importance term for each loss term')
 
 args = parser.parse_args()
 # Validate dataset
@@ -123,7 +123,6 @@ assert args.dataset == 'cifar10' or args.dataset == 'cifar100', 'Dataset can onl
 # Use CUDA
 os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu_id
 use_cuda = torch.cuda.is_available()
-
 # Random seed
 if args.manualSeed is None:
     args.manualSeed = random.randint(1, 10000)
@@ -132,6 +131,7 @@ random.seed(args.manualSeed)
 torch.manual_seed(args.manualSeed)
 if use_cuda:
     torch.cuda.manual_seed_all(args.manualSeed)
+assert len(args.mimic_position) == len(args.mimic_lambda)
 
 state = {k: v for k, v in args._get_kwargs()}
 print('Input Arguments: \n{}'.format(json.dumps(state, indent=4)))
@@ -152,7 +152,7 @@ def main():
             # except logger
             if os.path.splitext(item)[-1] != '.log':
                 os.system('rm -rf ' + os.path.join(args.checkpoint, item))
-
+    # open tensorboard writer
     writer = SummaryWriter(args.checkpoint)
     # Data
     print('==> Preparing dataset {}'.format(args.dataset))
@@ -235,7 +235,7 @@ def main():
     print('    Total params: %.2fM' % (sum(p.numel() for p in model.parameters()) / 1000000.0))
 
     # Teacher Model: teacher model, teacher_crit, teacher_opt, teacher_acc
-    if args.teacher:
+    if eval(args.teacher):
         print("==> creating Teacher Model '{}{}'".format(args.teacher_arch, args.teacher_depth))
         if args.teacher_arch.startswith('resnext'):
             teacher = models.__dict__[args.teacher_arch](
@@ -301,10 +301,11 @@ def main():
 
         print('    Total params of main model: %.2fM' % (sum(p.numel() for p in model.parameters()) / 1000000.0))
         print('    Total params of Teacher model: %.2fM' % (sum(p.numel() for p in teacher.parameters()) / 1000000.0))
-        mimic_crit = Distillation(supervision=args.mimic_mean, function=args.mimic_function, normalize=args.normalize)
+        # mimic_crit = Distillation(supervision=args.mimic_mean, function=args.mimic_function, normalize=args.normalize)
+        mimic_crit = eval(args.mimic_loss) if len(args.mimic_loss) > 0 else None
     else:
         teacher = None
-        t_best_acc = 0
+        t_best_acc = None
         mimic_crit = None
         teacher_opt = None
 
@@ -312,7 +313,13 @@ def main():
     optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
 
     # Resume
-    title = 'cifar-10-{}{}'.format(args.arch, args.depth)
+    if eval(args.teacher):
+        if args.mutual_learning is True:
+            title = '{}-[s]{}{}[M]'.format(args.dataset, args.arch, args.depth)
+        else:
+            title = '{}-[s]{}{}'.format(args.dataset, args.arch, args.depth)
+    else:
+        title = '{}-{}{}'.format(args.dataset, args.arch, args.depth)
     if args.resume:
         # Load checkpoint & logger
         print('==> Resuming from checkpoint at {}...'.format(args.resume))
@@ -341,7 +348,7 @@ def main():
         adjust_learning_rate(optimizer, epoch)
         print('\nEpoch: [{} | {}] | LR: {:.5f} '.format(epoch + 1, args.epochs, state['lr']))
 
-        # TO DO: Mutual Learning
+        # TO DO: Train teacher model
         if teacher and teacher_opt:
             t_train_loss, t_train_acc1, t_train_acc5 = train(trainloader, teacher, criterion,
                                                              teacher_opt, epoch, use_cuda, name='T')
@@ -415,6 +422,7 @@ def train(trainloader, model, criterion, optimizer, epoch, use_cuda, name='S',
           teacher=None, teacher_opt=None, mimic_criterion=None):
     # switch to train mode
     model.train()
+    teacher.train()
 
     batch_time = AverageMeter()
     data_time = AverageMeter()
@@ -422,10 +430,10 @@ def train(trainloader, model, criterion, optimizer, epoch, use_cuda, name='S',
     top1 = AverageMeter()
     top5 = AverageMeter()
     end = time.time()
-    if teacher and teacher_opt:
-        t_losses = AverageMeter()
-        t_top1 = AverageMeter()
-        t_top5 = AverageMeter()
+    # Average Meters for teacher
+    t_losses = AverageMeter()
+    t_top1 = AverageMeter()
+    t_top5 = AverageMeter()
 
     tbar = tqdm(trainloader, ncols=80)
     for batch_idx, (inputs, targets) in enumerate(tbar):
@@ -437,7 +445,11 @@ def train(trainloader, model, criterion, optimizer, epoch, use_cuda, name='S',
             inputs, targets = inputs.cuda(), targets.cuda(async=True)
         inputs, targets = torch.autograd.Variable(inputs), torch.autograd.Variable(targets)
 
-        # compute output
+        # model output
+        outputs, features = model(inputs)
+        task_loss = criterion(outputs, targets)
+
+        # output from teacher
         if teacher and teacher_opt:
             teacher.train()
             t_outputs, t_features = teacher(inputs)
@@ -454,18 +466,17 @@ def train(trainloader, model, criterion, optimizer, epoch, use_cuda, name='S',
             t_loss.backward()
             teacher_opt.step()
         elif teacher and teacher_opt is None:
-            teacher.eval()
+            # teacher.eval()
             with torch.no_grad():
                 t_outputs, t_features = teacher(inputs)
         else:
             t_outputs, t_features = None, None
 
-        outputs, features = model(inputs)
-        task_loss = criterion(outputs, targets)
         if mimic_criterion and t_features:
-            mimic_loss = mimic_criterion(features, t_features, writer=writer, batch=curr_batch)
-            # mimic_losses = [at_loss(fs, ft) for fs, ft in zip(features, t_features)]
-            # mimic_loss = sum(mimic_losses)
+            # mimic_loss = mimic_criterion(features, t_features, writer=writer, batch=curr_batch)
+            # TO DO: FSP losses require feature pairs!
+            mimic_losses = [args.mimic_lambda * mimic_criterion(features[p], t_features[p], args) for i, p in enumerate(args.mimic_positions)]
+            mimic_loss = sum(mimic_losses)
         else:
             mimic_loss = torch.tensor(0).float().to(inputs.device)
         total_loss = task_loss + mimic_loss
