@@ -38,7 +38,7 @@ def at_loss(s, t, args=None):
         _n, _c, _h, _w = t.shape
         assert h == _h and w == _w
         loss = (attention(s) - attention(t)).pow(2).mean()
-        losses.append(args.mimic_theta[i] * loss)
+        losses.append(args.mimic_lambda[i] * loss)
     return losses
 
 
@@ -56,7 +56,7 @@ def fm_loss(student, teacher, args=None):
         s = student[p]
         t = teacher[p]
         loss = (s - t).pow(2).mean()
-        losses.append(args.mimic_theta[i] * loss)
+        losses.append(args.mimic_lambda[i] * loss)
     return losses
 
 
@@ -105,7 +105,7 @@ def mmd_loss(student, teacher, args=None):
         mmd_st = s.bmm(t.transpose(2, 1))
         mmd_st_mean = mmd_st.pow(2).mean()
         loss = mmd_s_mean * 2 * mmd_st_mean
-        losses.append(args.mimic_theta[i] * loss)
+        losses.append(args.mimic_lambda[i] * loss)
     return losses
 
 
@@ -143,5 +143,5 @@ def fsp_loss(student, teacher, args=None):
         t2 = t2.view(t2.shape[0], t2.shape[1], -1)
         fsp_t = t1.bmm(t2.transpose(1, 2)) / t1.shape[2]                    # N, C1, C2
         loss = (fsp_s - fsp_t).pow(2).mean()
-        losses.append(args.mimic_theta[i] * loss)
+        losses.append(args.mimic_lambda[i] * loss)
     return losses

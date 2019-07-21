@@ -313,7 +313,7 @@ def main():
         print('    Total params of main model: %.2fM' % (sum(p.numel() for p in model.parameters()) / 1000000.0))
         print('    Total params of Teacher model: %.2fM' % (sum(p.numel() for p in teacher.parameters()) / 1000000.0))
         # mimic_crit = Distillation(supervision=args.mimic_mean, function=args.mimic_function, normalize=args.normalize)
-        mimic_crit = eval(args.mimic_loss) if len(args.mimic_loss) > 0 else None
+        mimic_crit = eval(args.mimic_loss) if len(args.mimic_loss) > 0 and args.mimic_theta > 0 else None
         loss_info += ' + {} * kd_loss + {} * {}'.format(args.kd_theta, args.mimic_theta, args.mimic_loss)
     else:
         teacher = None
