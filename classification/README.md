@@ -189,6 +189,8 @@ Top1 error rate on the CIFAR-10/100 benchmarks are reported. You may get differe
 Note that the number of parameters are computed on the CIFAR-10 dataset.<br>
 ```Top-1 Accuracy is the best one, while Top-5 is one at the last epoch.```
 
+##### Baseline
+
 | Model             | Param (M)      | CIFAR-10 Top1 (%) | CIFAR-10 Top5 (%) |
 | ----------------- | -------------- | ----------------- | ----------------- |
 | ResNet-20         | 0.27           | 91.70             | 99.71             |
@@ -213,6 +215,33 @@ Note that the number of parameters are computed on the CIFAR-10 dataset.<br>
 | WRN-40-1-drop     | 0.57           | 71.87              | 92.31              |
 | WRN-40-2-drop     | 2.26           | 75.98              | 93.59              |
 
+---
+
+##### Knowledge Distillation
+  * *θ*: weight for mimic loss; *α*: weight for KD loss; (1 - *α*): weight for task loss
+   
+| Setting                              | Model          | Param (M)      | CIFAR-10 Top1 (%) | CIFAR-10 Top5 (%) |
+| ------------------------------------ | -------------- | -------------- | ----------------- | ----------------- |
+| Student Baseline                     | WRN-16-1       | 0.18           | 91.30             | 99.75             |
+| KD (*T* = 4, *α* = 0.9)              | WRN-16-1       | 0.18           | 92.54 (+1.24)     | 99.81             |
+| AT (*T* = 4, *α* = 1, *θ* = 0.05)    | WRN-16-1       | 0.18           | 92.27 (+0.97)     | 99.79             |
+| AT (*T* = 4, *α* = 0, *θ* = 0.05)    | WRN-16-1       | 0.18           | 91.34 (+0.04)     | 99.72             |
+| AT (*T* = 4, *α* = 0.9, *θ* = 0.05)  | WRN-16-1       | 0.18           | 92.97 (+1.47)     | 99.74             |
+| Teacher                              | WRN-16-2       | 0.69           | 93.58             | 99.78             |
+
+| Setting                              | Model          | Param (M)      | CIFAR-100 Top1 (%) | CIFAR-100 Top5 (%) |
+| ------------------------------------ | -------------- | -------------- | ------------------ | ------------------ |
+| Student Baseline                     | ResNet-20      | 0.28           | 67.86              | 90.11              |
+| KD (*T* = 4, *α* = 0.9, *θ* = 0)     | ResNet-20      | 0.28           | 68.67 (+0.81)      | 91.15              |
+| FM (*T* = 4, *α* = 0, *θ* = 1)       | ResNet-20      | 0.28           | 69.61 (+1.75)      | 92.07              |
+| AT (*T* = 4, *α* = 0.9, *θ* = 0.05)  | ResNet-20      | 0.28           | 68.36 (+0.50)      | 91.25              |
+| AT (*T* = 4, *α* = 1, *θ* = 0.05)    | ResNet-20      | 0.28           | 64.74 (-3.12)      | 89.92              |
+| AT (*T* = 4, *α* = 0, *θ* = 0.05)    | ResNet-20      | 0.28           | 68.05 (+0.19)      | 90.28              |
+| AT (*T* = 4, *α* = 0, *θ* = 0.1)     | ResNet-20      | 0.28           | 67.60 (-0.26)      | 90.36              |
+| AT (*T* = 4, *α* = 0, *θ* = 50)      | ResNet-20      | 0.28           | 67.95 (+0.09)      | 90.42              |
+| MMD (*T* = 4, *α* = 0, *θ* = 25)     | ResNet-20      | 0.28           | 68.37 (+0.51)      | 90.31              |
+| NST (*T* = 4, *α* = 0, *θ* = 25)     | ResNet-20      | 0.28           | 68.35 (+0.49)      | 90.82              |
+| Teacher                              | ResNet-56      | 0.86           | 71.09              | 91.56              |
 
 ## Supported Algorithms
 * [x] [1] Knowledge Distillation (KD): [Distilling the Knowledge in a Neural Network](https://arxiv.org/abs/1503.02531v1)

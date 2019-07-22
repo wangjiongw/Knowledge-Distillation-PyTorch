@@ -8,8 +8,8 @@ import torch.nn.functional as F
 def kd_loss(s, t, args=None):
     """
     Knowledge Distillation Loss
-    :param s:
-    :param t:
+    :param s: student outputs
+    :param t: teacher outputs
     :param args:
     :return:
     """
@@ -26,8 +26,8 @@ def attention(x):
 def at_loss(student, teacher, args=None):
     """
     Attention Transfer Loss
-    :param student:
-    :param teacher:
+    :param student: feature dictionary
+    :param teacher: feature dictionary
     :param args:
     :return:
     """
@@ -47,8 +47,8 @@ def at_loss(student, teacher, args=None):
 def fm_loss(student, teacher, args=None):
     """
     Feature Mimic Loss
-    :param student:
-    :param teacher:
+    :param student: feature dictionary
+    :param teacher: feature dictionary
     :param args:
     :return:
     """
@@ -65,8 +65,8 @@ def fm_loss(student, teacher, args=None):
 def nst_loss(student, teacher, args=None):
     """
     Neural Selectivity Transfer Loss (paper)
-    :param student:
-    :param teacher:
+    :param student: feature dictionary
+    :param teacher: feature dictionary
     :param args:
     :return:
     """
@@ -90,8 +90,8 @@ def nst_loss(student, teacher, args=None):
 def mmd_loss(student, teacher, args=None):
     """
     Maximum Mean Discrepancy Loss (NST Project)
-    :param student:
-    :param teacher:
+    :param student: feature dictionary
+    :param teacher: feature dictionary
     :param args:
     :return:
     """
@@ -114,8 +114,8 @@ def mmd_loss(student, teacher, args=None):
 def similarity_loss(student, teacher, args=None):
     """
     Similarity Transfer Loss
-    :param student:
-    :param teacher:
+    :param student: feature dictionary
+    :param teacher: feature dictionary
     :param args:
     :return:
     """
@@ -125,8 +125,8 @@ def similarity_loss(student, teacher, args=None):
 def fsp_loss(student, teacher, args=None):
     """
     Flow of Solving Problem Loss
-    :param student:
-    :param teacher:
+    :param student: feature dictionary
+    :param teacher: feature dictionary
     :param args:
     :return:
     """

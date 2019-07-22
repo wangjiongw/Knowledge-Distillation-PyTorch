@@ -54,7 +54,7 @@ parser.add_argument('--lr', '--learning-rate', default=0.1, type=float,
 parser.add_argument('--drop', '--dropout', default=0, type=float,
                     metavar='Dropout', help='Dropout ratio')
 parser.add_argument('--schedule', type=int, nargs='+', default=[150, 225],
-                        help='Decrease learning rate at these epochs.')
+                    help='Decrease learning rate at these epochs.')
 parser.add_argument('--gamma', type=float, default=0.1, help='LR is multiplied by gamma on schedule.')
 parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
                     help='momentum')
@@ -105,7 +105,7 @@ parser.add_argument('--mutual_learning', type=bool, default=False,
                     help='Co-train teacher model from scratch')
 # Mimic setting
 parser.add_argument('--mimic_loss', type=str, default='attention',
-                    choices=('', 'at_loss', 'ft_loss', 'nst_loss', 'mmd_loss'),
+                    choices=('', 'at_loss', 'fm_loss', 'nst_loss', 'mmd_loss'),
                     help='means of feature mimicking')
 parser.add_argument('--mimic_position', type=int, nargs='+',
                     help='which positions to be mimicked')
@@ -118,6 +118,8 @@ parser.add_argument('--kd_theta', type=float, default=0,
                     help='weight of ')
 parser.add_argument('--mimic_theta', type=float, default=0,
                     help='weight of total mimic loss')
+parser.add_argument('--mimic_decay', type=int, nargs='+', default=[],
+                    help='Decrease mimic loss weight at these epochs.')
 parser.add_argument('--mimic_lambda', type=float, nargs='+',
                     help='importance term for each loss term')
 
@@ -146,7 +148,7 @@ t_best_acc = 0      # best test accuracy of teacher
 
 
 def main():
-    global best_acc, t_best_acc, writer
+    global best_acc, t_best_acc, writer, total_batch
     start_epoch = args.start_epoch  # start from epoch 0 or last checkpoint epoch
 
     if not os.path.isdir(args.checkpoint):
@@ -313,7 +315,7 @@ def main():
         print('    Total params of Teacher model: %.2fM' % (sum(p.numel() for p in teacher.parameters()) / 1000000.0))
         # mimic_crit = Distillation(supervision=args.mimic_mean, function=args.mimic_function, normalize=args.normalize)
         mimic_crit = eval(args.mimic_loss) if len(args.mimic_loss) > 0 and args.mimic_theta > 0 else None
-        loss_info += ' + {} * kd_loss + {} * {}'.format(args.kd_theta, args.mimic_theta, args.mimic_loss)
+        loss_info += ' + {} * kd_loss + {} * {} [{}]'.format(args.kd_theta, args.mimic_theta, args.mimic_loss, args.mimic_lambda)
     else:
         teacher = None
         t_best_acc = None
@@ -356,47 +358,32 @@ def main():
     for epoch in range(start_epoch, args.epochs):
         adjust_learning_rate(optimizer, epoch)
         print('\nEpoch: [{} | {}] | LR: {:.5f} '.format(epoch + 1, args.epochs, state['lr']))
+        total_batch = (args.epochs - start_epoch) * len(trainloader)
 
-        # TO DO: Train teacher model
-        """
-        if teacher and teacher_opt:
-            t_train_loss, t_train_acc1, t_train_acc5 = train(trainloader, teacher, criterion,
-                                                             teacher_opt, epoch, use_cuda, name='T')
+        train_loss, train_acc1, train_acc5 = train(trainloader, model, criterion, optimizer, epoch, use_cuda, name='S',
+                                                   teacher=teacher, teacher_opt=teacher_opt, mimic_criterion=mimic_crit)
+
+        if teacher is not None and teacher_opt is not None:
             t_test_loss, t_test_acc1, t_test_acc5 = test(testloader, teacher, criterion, epoch, use_cuda, name='T')
-            print('[T] Loss: [train: {:.4f} | test: {:.4f}] Acc(1[5]): [train: {:.3f}[{:.3f}] | test: {:.3f}[{:.3f}]]'
-                  .format(t_train_loss, t_test_loss, t_train_acc1, t_train_acc5, t_test_acc1, t_test_acc5))
-
-            # write tensorboard
-            writer.add_scalar('Train_epoch/Teacher Loss', t_train_loss, epoch + 1)
-            writer.add_scalar('Train_epoch/Teacher Error Rate', 100 - t_train_acc1, epoch + 1)
-            writer.add_scalar('Train_epoch/Teacher Top1 Accuracy', t_train_acc1, epoch + 1)
-            writer.add_scalar('Train_epoch/Teacher Top5 Accuracy', t_train_acc5, epoch + 1)
-            writer.add_scalar('Test_epoch/Teacher Loss', t_test_loss, epoch + 1)
-            writer.add_scalar('Test_epoch/Teacher Error Rate', 100 - t_test_acc1, epoch + 1)
-            writer.add_scalar('Test_epoch/Teacher Top1 Accuracy', t_test_acc1, epoch + 1)
-            writer.add_scalar('Test_epoch/Teacher Top5 Accuracy', t_test_acc5, epoch + 1)
-
-            # save teacher model
+            writer.add_scalar('Test_epoch/{}_Teacher Loss'.format(args.dataset), t_test_loss, epoch + 1)
+            writer.add_scalar('Test_epoch/{}_Teacher Error Rate'.format(args.dataset), 100 - t_test_acc1, epoch + 1)
+            writer.add_scalar('Test_epoch/{}_Teacher Top1 Accuracy'.format(args.dataset), t_test_acc1, epoch + 1)
+            writer.add_scalar('Test_epoch/{}_Teacher Top5 Accuracy'.format(args.dataset), t_test_acc5, epoch + 1)
+            # save model
             t_is_best = t_test_acc1 > t_best_acc
-            t_test_acc1 = max(t_test_acc1, t_best_acc)
+            t_best_acc = max(t_test_acc1, t_best_acc)
             save_checkpoint({
                 'epoch': epoch + 1,
                 'state_dict': teacher.state_dict(),
                 'acc': t_test_acc1,
                 'best_acc': t_best_acc,
                 'optimizer': teacher_opt.state_dict(),
-            }, t_is_best, checkpoint=args.checkpoint)
-        """
+            }, t_is_best, checkpoint=args.checkpoint, alias='T')
+            # print info
+            print('[T] Test Loss:{:.4f}] Test Acc(1[5]):{:.3f}[{:.3f}]]|Best:{}'.
+                  format(t_test_loss, t_test_acc1, t_test_acc5, t_best_acc))
 
-        train_loss, train_acc1, train_acc5 = train(trainloader, model, criterion, optimizer, epoch, use_cuda, name='S',
-                                                   teacher=teacher, teacher_opt=teacher_opt, mimic_criterion=mimic_crit)
-        test_loss, test_acc1, test_acc5 = test(testloader, model, criterion, epoch, use_cuda, name='S', teacher=teacher)
-
-        # append logger file
-        print('[S] Loss: [train: {:.4f} | test: {:.4f}] Acc(1[5]): [train: {:.3f}[{:.3f}] | test: {:.3f}[{:.3f}]]'.
-              format(train_loss, test_loss, train_acc1, train_acc5, test_acc1, test_acc5))
-
-        logger.append([state['lr'], train_loss, test_loss, 100 - train_acc1, 100 - test_acc1])
+        test_loss, test_acc1, test_acc5 = test(testloader, model, criterion, epoch, use_cuda, name='S')
 
         # write tensorboard
         writer.add_scalar('Train_epoch/{}_LR'.format(args.dataset), state['lr'], epoch + 1)
@@ -420,6 +407,11 @@ def main():
                 'optimizer': optimizer.state_dict(),
             }, is_best, checkpoint=args.checkpoint)
 
+        # append logger file
+        logger.append([state['lr'], train_loss, test_loss, 100 - train_acc1, 100 - test_acc1])
+        print('[S] Loss:[train:{:.4f}|test:{:.4f}] Acc(1[5]):[train: {:.3f}[{:.3f}]|test: {:.3f}[{:.3f}]]|Best:{}'.
+              format(train_loss, test_loss, train_acc1, train_acc5, test_acc1, test_acc5, best_acc))
+
     writer.close()
     logger.close()
     logger.plot()
@@ -427,7 +419,7 @@ def main():
 
     print('\n{}{}[{}] | Best acc:'.format(args.arch, args.depth, args.dataset))
     print(best_acc)
-    print('[checkpoint saved in {}]'.format(args.checkpoint))
+    print('Checkpoint:\n{}'.format(args.checkpoint))
 
 
 def train(trainloader, model, criterion, optimizer, epoch, use_cuda, name='S',
@@ -480,7 +472,10 @@ def train(trainloader, model, criterion, optimizer, epoch, use_cuda, name='S',
             t_loss.backward()
             teacher_opt.step()
 
-            writer.add_scalar('Train_batch_batch/Teacher_Loss', t_loss.item(), curr_batch)
+            writer.add_scalar('Train_batch_batch/{}_Teacher_Loss'.format(args.dataset), t_losses.val, curr_batch)
+            writer.add_scalar('Train_batch/{}_Teacher_Error Rate'.format(args.dataset), 100 - t_top1.val, curr_batch)
+            writer.add_scalar('Train_batch/{}_Teacher_Top1 Accuracy'.format(args.dataset), t_top1.val, curr_batch)
+            writer.add_scalar('Train_batch/{}_Teacher_Top5 Accuracy'.format(args.dataset), t_top5.val, curr_batch)
         elif teacher and teacher_opt is None:
             # teacher.eval()
             with torch.no_grad():
@@ -500,6 +495,9 @@ def train(trainloader, model, criterion, optimizer, epoch, use_cuda, name='S',
         if mimic_criterion and t_features and len(args.mimic_position) > 0:
             mimic_losses = mimic_criterion(features, t_features, args)
             mimic_loss = sum(mimic_losses)
+            # decay mimic loss weight step-wise
+            if len(args.mimic_decay) > 0 and epoch in args.mimic_decay:
+                args.mimic_theta = args.mimic_theta * 0.5
             effective_mimic_loss = args.mimic_theta * mimic_loss
         else:
             mimic_loss = torch.tensor(0).float().to(inputs.device)
@@ -544,7 +542,7 @@ def train(trainloader, model, criterion, optimizer, epoch, use_cuda, name='S',
     return losses.avg, top1.avg, top5.avg
 
 
-def test(testloader, model, criterion, epoch, use_cuda, name='S', teacher=None):
+def test(testloader, model, criterion, epoch, use_cuda, name='S'):
     global best_acc, t_best_acc
 
     batch_time = AverageMeter()
@@ -589,11 +587,11 @@ def test(testloader, model, criterion, epoch, use_cuda, name='S', teacher=None):
     return losses.avg, top1.avg, top5.avg
 
 
-def save_checkpoint(state, is_best, checkpoint='checkpoint', filename='checkpoint.pth.tar'):
-    filepath = os.path.join(checkpoint, filename)
+def save_checkpoint(state, is_best, checkpoint='checkpoint', filename='checkpoint.pth.tar', alias=''):
+    filepath = os.path.join(checkpoint, '{}{}'.format(alias, filename))
     torch.save(state, filepath)
     if is_best:
-        shutil.copyfile(filepath, os.path.join(checkpoint, 'model_best.pth.tar'))
+        shutil.copyfile(filepath, os.path.join(checkpoint, '{}model_best.pth.tar'.format(alias)))
 
 
 def adjust_learning_rate(optimizer, epoch):
