@@ -12,8 +12,7 @@ import shutil
 import time
 import random
 from tqdm import tqdm
-from .loss.distillation import Distillation
-from .loss.losses import *
+from loss.losses import *
 from tensorboardX import SummaryWriter
 
 import torch
@@ -106,7 +105,7 @@ parser.add_argument('--mutual_learning', type=bool, default=False,
                     help='Co-train teacher model from scratch')
 # Mimic setting
 parser.add_argument('--mimic_loss', type=str, default='attention',
-                    choices=('at_loss', 'ft_loss', 'nst_loss', 'mmd_loss'),
+                    choices=('', 'at_loss', 'ft_loss', 'nst_loss', 'mmd_loss'),
                     help='means of feature mimicking')
 parser.add_argument('--mimic_position', type=int, nargs='+',
                     help='which positions to be mimicked')
@@ -400,15 +399,15 @@ def main():
         logger.append([state['lr'], train_loss, test_loss, 100 - train_acc1, 100 - test_acc1])
 
         # write tensorboard
-        writer.add_scalar('Train_epoch/LR', state['lr'], epoch + 1)
-        writer.add_scalar('Train_epoch/Loss', train_loss, epoch + 1)
-        writer.add_scalar('Train_epoch/Error Rate', 100 - train_acc1, epoch + 1)
-        writer.add_scalar('Train_epoch/Top1 Accuracy', train_acc1, epoch + 1)
-        writer.add_scalar('Train_epoch/Top5 Accuracy', train_acc5, epoch + 1)
-        writer.add_scalar('Test_epoch/Loss', test_loss, epoch + 1)
-        writer.add_scalar('Test_epoch/Error Rate', 100 - test_acc1, epoch + 1)
-        writer.add_scalar('Test_epoch/Top1 Accuracy', test_acc1, epoch + 1)
-        writer.add_scalar('Test_epoch/Top5 Accuracy', test_acc5, epoch + 1)
+        writer.add_scalar('Train_epoch/{}_LR'.format(args.dataset), state['lr'], epoch + 1)
+        writer.add_scalar('Train_epoch/{}_Loss'.format(args.dataset), train_loss, epoch + 1)
+        writer.add_scalar('Train_epoch/{}_Error Rate'.format(args.dataset), 100 - train_acc1, epoch + 1)
+        writer.add_scalar('Train_epoch/{}_Top1 Accuracy'.format(args.dataset), train_acc1, epoch + 1)
+        writer.add_scalar('Train_epoch/{}_Top5 Accuracy'.format(args.dataset), train_acc5, epoch + 1)
+        writer.add_scalar('Test_epoch/{}_Loss'.format(args.dataset), test_loss, epoch + 1)
+        writer.add_scalar('Test_epoch/{}_Error Rate'.format(args.dataset), 100 - test_acc1, epoch + 1)
+        writer.add_scalar('Test_epoch/{}_Top1 Accuracy'.format(args.dataset), test_acc1, epoch + 1)
+        writer.add_scalar('Test_epoch/{}_Top5 Accuracy'.format(args.dataset), test_acc5, epoch + 1)
 
         # save model
         is_best = test_acc1 > best_acc
@@ -428,6 +427,7 @@ def main():
 
     print('\n{}{}[{}] | Best acc:'.format(args.arch, args.depth, args.dataset))
     print(best_acc)
+    print('[checkpoint saved in {}]'.format(args.checkpoint))
 
 
 def train(trainloader, model, criterion, optimizer, epoch, use_cuda, name='S',
@@ -523,21 +523,21 @@ def train(trainloader, model, criterion, optimizer, epoch, use_cuda, name='S',
         end = time.time()
 
         # plot tensorboard;
-        writer.add_scalar('Train_batch/Loss', task_loss.item(), curr_batch)
-        writer.add_scalar('Train_batch/Total Loss', total_loss.item(), curr_batch)
-        writer.add_scalar('Train_batch/Error Rate', 100 - top1.val, curr_batch)
-        writer.add_scalar('Train_batch/Top1 Accuracy', top1.val, curr_batch)
-        writer.add_scalar('Train_batch/Top5 Accuracy', top5.val, curr_batch)
+        writer.add_scalar('Train_batch/{}_Loss'.format(args.dataset), task_loss.item(), curr_batch)
+        writer.add_scalar('Train_batch/{}_Total Loss'.format(args.dataset), total_loss.item(), curr_batch)
+        writer.add_scalar('Train_batch/{}_Error Rate'.format(args.dataset), 100 - top1.val, curr_batch)
+        writer.add_scalar('Train_batch/{}_Top1 Accuracy'.format(args.dataset), top1.val, curr_batch)
+        writer.add_scalar('Train_batch/{}_Top5 Accuracy'.format(args.dataset), top5.val, curr_batch)
         # distillation; each term of distillation loss
-        writer.add_scalar('Train_batch_distill/task_loss*{}'.format(args.task_theta),
+        writer.add_scalar('Train_batch_distill/{}_task_loss*{}'.format(args.dataset, args.task_theta),
                           effective_task_loss.item(), curr_batch)
-        writer.add_scalar('Train_batch_distill/kd_loss*{}'.format(args.kd_theta),
+        writer.add_scalar('Train_batch_distill/{}_kd_loss*{}'.format(args.dataset, args.kd_theta),
                           effective_soft_loss.item(), curr_batch)
-        writer.add_scalar('Train_batch_distill/{}*{}'.format(args.mimic_loss, args.mimic_theta),
+        writer.add_scalar('Train_batch_distill/{}_{}*{}'.format(args.dataset, args.mimic_loss, args.mimic_theta),
                           effective_mimic_loss.item(), curr_batch)
         # plot progress
-        tbar.set_description('[{}]DT:{data:.3f}s|BT:{bt:.3f}s|tL:{loss:.4f}|kL:{kloss:.4f}'
-                             'mL: {mloss:.4f}|top1:{top1:.4f}|top5:{top5:.4f}'.
+        tbar.set_description('[{}]DT:{data:.3f}s|BT:{bt:.3f}s|tL:{loss:.4f}|kL:{kloss:.4f}|'
+                             'mL: {mloss:.4f}|top1:{top1:.2f}|top5:{top5:.2f}'.
                              format(name, data=data_time.avg, bt=batch_time.avg, loss=effective_task_loss.item(),
                                     kloss=effective_soft_loss.item(), mloss=effective_mimic_loss.item(),
                                     top1=top1.avg, top5=top5.avg))
@@ -582,7 +582,7 @@ def test(testloader, model, criterion, epoch, use_cuda, name='S', teacher=None):
         end = time.time()
 
         # plot progress
-        tbar.set_description('[{name}]DT:{data:.3f}s|BT:{bt:.3f}s|Loss:{loss:.4f}|top1:{top1:.4f}|top5:{top5:.4f}'.
+        tbar.set_description('[{name}]DT:{data:.3f}s|BT:{bt:.3f}s|Loss:{loss:.4f}|top1:{top1:.2f}|top5:{top5:.2f}'.
                              format(name=name, data=data_time.avg, bt=batch_time.avg,
                                     loss=losses.avg, top1=top1.avg, top5=top5.avg
                                     ))

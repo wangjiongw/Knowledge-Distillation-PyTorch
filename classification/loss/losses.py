@@ -23,17 +23,19 @@ def attention(x):
     return F.normalize(x.pow(2).mean(1).view(x.size(0), -1))
 
 
-def at_loss(s, t, args=None):
+def at_loss(student, teacher, args=None):
     """
     Attention Transfer Loss
-    :param s:
-    :param t:
+    :param student:
+    :param teacher:
     :param args:
     :return:
     """
     losses = []
-    assert len(args.mimic_position) == len(args.mimic_theta)
+    assert len(args.mimic_position) == len(args.mimic_lambda)
     for i, p in enumerate(args.mimic_position):
+        s = student[p]
+        t = teacher[p]
         n, c, h, w = s.shape
         _n, _c, _h, _w = t.shape
         assert h == _h and w == _w
@@ -51,7 +53,7 @@ def fm_loss(student, teacher, args=None):
     :return:
     """
     losses = []
-    assert len(args.mimic_position) == len(args.mimic_theta)
+    assert len(args.mimic_position) == len(args.mimic_lambda)
     for i, p in enumerate(args.mimic_position):
         s = student[p]
         t = teacher[p]
@@ -94,7 +96,7 @@ def mmd_loss(student, teacher, args=None):
     :return:
     """
     losses = []
-    assert len(args.mimic_position) == len(args.mimic_theta)
+    assert len(args.mimic_position) == len(args.mimic_lambda)
     for i, p in enumerate(args.mimic_position):
         s = student[p]
         t = teacher[p]
@@ -129,7 +131,7 @@ def fsp_loss(student, teacher, args=None):
     :return:
     """
     losses = []
-    assert len(args.mimic_position) == 2 * len(args.mimic_theta)
+    assert len(args.mimic_position) == 2 * len(args.mimic_lambda)
     for i in range(len(args.mimic_theta)):
         s1 = student[args.mimic_position[2 * i]]
         s2 = student[args.mimic_position[2 * i + 1]]
