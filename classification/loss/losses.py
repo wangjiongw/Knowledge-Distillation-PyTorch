@@ -106,7 +106,7 @@ def mmd_loss(student, teacher, args=None):
         t = F.normalize(t.view(t.shape[0], t.shape[1], -1), dim=1)
         mmd_st = s.bmm(t.transpose(2, 1))
         mmd_st_mean = mmd_st.pow(2).mean()
-        loss = mmd_s_mean * 2 * mmd_st_mean
+        loss = mmd_s_mean - 2 * mmd_st_mean
         losses.append(args.mimic_lambda[i] * loss)
     return losses
 
